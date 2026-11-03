@@ -1,0 +1,26 @@
+# Raspberry Pi SD-card image (64-bit Raspberry Pi 4 by default).
+#   kas build kas/raspberrypi.yml
+#
+# Other boards: KAS_MACHINE=raspberrypi3-64 kas build kas/raspberrypi.yml
+# (a Raspberry Pi 2 Model B is "raspberrypi2"). Then flash
+# build/tmp/deploy/images/<machine>/telemetry-image-dev-<machine>.rootfs.wic.bz2
+# with bmaptool or Raspberry Pi Imager.
+
+header:
+  version: 14
+  includes:
+    - kas/common.yml
+
+machine: raspberrypi4-64
+
+repos:
+  meta-raspberrypi:
+    url: https://git.yoctoproject.org/meta-raspberrypi
+    branch: wrynose
+
+local_conf_header:
+  50-rpi: |
+    # Serial console on the GPIO header (pins 8/10) for headless debugging.
+    ENABLE_UART = "1"
+    # The Wi-Fi/Bluetooth firmware carries this extra license flag.
+    LICENSE_FLAGS_ACCEPTED += "synaptics-killswitch"

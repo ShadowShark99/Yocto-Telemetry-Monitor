@@ -1,0 +1,20 @@
+# QEMU build plus automated boot testing with OEQA, as run in CI:
+#   kas build kas/ci.yml                  # build the image
+#   kas build kas/ci.yml -c testimage     # boot it in QEMU and run the tests
+#
+# Needs KVM (/dev/kvm) for reasonable boot times.
+
+header:
+  version: 14
+  includes:
+    - kas/qemux86-64.yml
+
+local_conf_header:
+  60-testimage: |
+    IMAGE_CLASSES += "testimage"
+    # User-mode networking: no tap device or sudo needed on the CI runner.
+    TEST_RUNQEMUPARAMS = "slirp"
+    # Generic checks first, then this layer's telemetryd tests
+    # (meta-telemetry/lib/oeqa/runtime/cases/telemetryd.py).
+    TEST_SUITES = "ping ssh date systemd telemetryd"
+    TEST_QEMUBOOT_TIMEOUT = "1500"

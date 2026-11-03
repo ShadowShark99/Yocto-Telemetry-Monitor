@@ -1,0 +1,33 @@
+#!/bin/sh
+# ptest entry point for telemetryd, run on the target with:
+#   ptest-runner telemetryd
+#
+# ptest-runner understands "PASS: name" / "FAIL: name" / "SKIP: name" lines,
+# so GoogleTest's output is translated into that format.
+cd "$(dirname "$0")" || exit 1
+
+LOG=$(mktemp)
+trap 'rm -f "$LOG"' EXIT
+status=0
+
+./telemetry_tests --gtest_color=no >"$LOG" 2>&1 || status=1
+sed -n \
+    -e 's/^\[       OK \] \([^ ]*\).*/PASS: \1/p' \
+    -e 's/^\[  FAILED  \] \([^ ]*\) (.*/FAIL: \1/p' \
+    -e 's/^\[  SKIPPED \] \([^ ]*\) (.*/SKIP: \1/p' \
+    "$LOG"
+if [ "$status" -ne 0 ]; then
+    cat "$LOG"
+fi
+
+# End-to-end test against the installed binaries, on a port that does not
+# clash with the running service.
+if ./integration_test.sh /usr/bin/telemetryd /usr/bin/telemetry-sim 45500 >"$LOG" 2>&1; then
+    echo "PASS: integration"
+else
+    echo "FAIL: integration"
+    cat "$LOG"
+    status=1
+fi
+
+exit $status

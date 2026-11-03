@@ -1,0 +1,20 @@
+# Host builds of the application
+/build*/
+/app/build*/
+
+# kas checks the layer repositories out next to this file and builds in build/
+/bitbake/
+/openembedded-core/
+/meta-yocto/
+/meta-openembedded/
+/meta-raspberrypi/
+/downloads/
+/sstate-cache/
+*.lock.yml.bak
+
+# Editors and tools
+.vscode/
+.idea/
+*.swp
+compile_commands.json
+__pycache__/

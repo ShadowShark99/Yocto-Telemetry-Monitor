@@ -1,0 +1,23 @@
+[Unit]
+Description=Telemetry sensor simulator (demo traffic for telemetryd)
+After=telemetryd.service
+Wants=telemetryd.service
+
+[Service]
+# Three simulated nodes at 2 Hz, with 2% corrupted packets, 1% dropped
+# packets and an over-temperature spike on one node every 60 seconds, so the
+# daemon's alarms, packet-loss accounting and error counters all get used.
+ExecStart=/usr/bin/telemetry-sim --host 127.0.0.1 --port 5500 --sensors 3 --rate 2 \
+    --fault-rate 0.02 --drop-rate 0.01 --spike-every 60 --quiet
+Restart=on-failure
+RestartSec=5
+
+DynamicUser=yes
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+RestrictAddressFamilies=AF_INET
+
+[Install]
+WantedBy=multi-user.target

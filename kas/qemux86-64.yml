@@ -1,0 +1,18 @@
+# x86-64 image for QEMU. Build and boot with:
+#   kas build kas/qemux86-64.yml
+#   kas shell kas/qemux86-64.yml -c "runqemu qemux86-64 nographic slirp"
+
+header:
+  version: 14
+  includes:
+    - kas/common.yml
+
+machine: qemux86-64
+
+local_conf_header:
+  50-qemu-network: |
+    # With `runqemu ... slirp` (user-mode networking, no root needed), forward
+    # host ports into the guest: 2222 -> ssh, 5500/udp -> telemetryd, so a
+    # simulator on the host can send to 127.0.0.1:5500. The ssh forward must
+    # stay first: OEQA's testimage reads the ssh port from it.
+    QB_SLIRP_OPT = "-netdev user,id=net0,hostfwd=tcp:127.0.0.1:2222-:22,hostfwd=udp:127.0.0.1:5500-:5500"

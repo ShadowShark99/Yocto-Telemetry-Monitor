@@ -1,0 +1,44 @@
+[Unit]
+Description=Embedded telemetry monitor
+Documentation=https://github.com/your-user/yocto-telemetry-monitor
+After=network.target
+
+[Service]
+# telemetryd sends READY=1 over $NOTIFY_SOCKET once its inputs are open, and
+# a WATCHDOG=1 keep-alive every second. If it hangs for 10 s, systemd kills
+# and restarts it.
+Type=notify
+ExecStart=/usr/bin/telemetryd --config /etc/telemetryd/telemetryd.conf
+ExecReload=/bin/kill -HUP $MAINPID
+WatchdogSec=10
+Restart=on-failure
+RestartSec=2
+# telemetryd validates its configuration before doing anything else and exits
+# with 78 (EX_CONFIG) if it is broken. Restarting will not fix that, so don't.
+# (Check a config by hand with: telemetryd --check-config --config FILE)
+RestartPreventExitStatus=78
+
+User=telemetry
+Group=telemetry
+SupplementaryGroups=dialout
+
+# /run/telemetryd, owned by the service user, removed when the service stops.
+RuntimeDirectory=telemetryd
+
+# Sandboxing. The service only needs a socket, the serial devices and its
+# runtime directory.
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictAddressFamilies=AF_INET AF_UNIX
+RestrictNamespaces=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+SystemCallArchitectures=native
+
+[Install]
+WantedBy=multi-user.target

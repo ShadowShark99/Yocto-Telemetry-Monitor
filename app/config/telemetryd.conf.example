@@ -1,0 +1,38 @@
+# telemetryd configuration
+#
+# Format: key = value. Lines starting with # or ; are comments, and so is
+# anything after " #" on a line. Quote a value to keep it verbatim ("" is an
+# empty string). Command-line options override these settings, and
+# `systemctl reload telemetryd` (SIGHUP) re-reads the file.
+
+# --- Inputs ---------------------------------------------------------------
+# UDP listener (IPv4). udp_port = 0 disables it.
+udp_bind = 0.0.0.0
+udp_port = 5500
+
+# Serial input, e.g. a USB-UART adapter. Leave empty to disable. If the
+# device is missing, telemetryd keeps running and retries every 5 seconds.
+serial_device = ""
+serial_baud   = 115200
+
+# --- Alarm thresholds -----------------------------------------------------
+temp_high_c       = 70
+temp_low_c        = -10
+humidity_high_pct = 90
+voltage_low_v     = 3.0
+
+# A sensor that sends nothing for this long is reported stale.
+stale_timeout_ms = 5000
+
+# --- Reporting ------------------------------------------------------------
+# Summary line per sensor in the journal every N seconds.
+report_interval_s = 10
+
+# Machine-readable status, rewritten every second. "" disables it.
+status_file = /run/telemetryd/status.json
+
+# Packets from more distinct sensor IDs than this are dropped.
+max_sensors = 32
+
+# debug, info, warning or error
+log_level = info

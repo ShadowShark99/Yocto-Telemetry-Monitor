@@ -1,0 +1,66 @@
+# Shared kas configuration: layers and distro settings for every target.
+# Not built on its own; use one of the machine files, e.g.
+#   kas build kas/qemux86-64.yml
+#
+# Yocto Project 6.0 "Wrynose" (LTS, supported until April 2030). From 5.3 on,
+# the combined "poky" repository is no longer updated, so bitbake,
+# openembedded-core and meta-yocto are separate repositories.
+#
+# Branches float to the latest stable-branch commit. For reproducible builds,
+# run `kas lock kas/qemux86-64.yml` and commit the generated .lock.yml.
+
+header:
+  version: 14
+
+distro: poky
+target: telemetry-image-dev
+
+repos:
+  # This repository (no url/path means "the repo containing this file").
+  yocto-telemetry-monitor:
+    layers:
+      meta-telemetry:
+
+  bitbake:
+    url: https://git.openembedded.org/bitbake
+    branch: "2.18"
+    layers:
+      .: disabled  # the build tool, not a layer
+
+  openembedded-core:
+    url: https://git.openembedded.org/openembedded-core
+    branch: wrynose
+    layers:
+      meta:
+
+  meta-yocto:
+    url: https://git.yoctoproject.org/meta-yocto
+    branch: wrynose
+    layers:
+      meta-poky:
+
+  meta-openembedded:
+    url: https://git.openembedded.org/meta-openembedded
+    branch: wrynose
+    layers:
+      meta-oe:
+
+local_conf_header:
+  10-init: |
+    # telemetryd is a systemd service (Type=notify, watchdog, sandboxing).
+    INIT_MANAGER = "systemd"
+
+  20-testing: |
+    # Build -ptest packages so the image can run its own unit tests.
+    DISTRO_FEATURES:append = " ptest"
+
+  30-disk: |
+    # Delete each recipe's work directory once it is built: a full image
+    # needs tens of GB less disk this way. Remove while debugging a recipe.
+    INHERIT += "rm_work"
+
+  40-sstate: |
+    # Reuse prebuilt artifacts from the Yocto Project's public shared-state
+    # cache where they match. Cuts the first build from hours to much less
+    # on a good connection; delete this line to build everything locally.
+    OE_FRAGMENTS += "core/yocto/sstate-mirror-cdn"

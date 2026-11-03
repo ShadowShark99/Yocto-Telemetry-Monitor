@@ -1,0 +1,96 @@
+# Fast checks on every push: build and test the application on the host with
+# two compilers (sanitizers on in Debug), cross-compile it for arm64 and run
+# it under user-mode QEMU, lint the shell scripts, and make sure the kas
+# files resolve. A full Yocto build lives in yocto.yml.
+name: App CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-test:
+    name: ${{ matrix.cxx }} ${{ matrix.build_type }}
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { cc: gcc,   cxx: g++,     build_type: Debug,   sanitize: "ON" }
+          - { cc: gcc,   cxx: g++,     build_type: Release, sanitize: "OFF" }
+          - { cc: clang-18, cxx: clang++-18, build_type: Debug,   sanitize: "ON" }
+          - { cc: clang-18, cxx: clang++-18, build_type: Release, sanitize: "OFF" }
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install build tools
+        run: |
+          sudo apt-get update
+          # libclang-rt-18-dev: clang's sanitizer runtimes
+          sudo apt-get install -y --no-install-recommends ninja-build libgtest-dev clang-18 libclang-rt-18-dev
+
+      - name: Configure
+        env:
+          CC: ${{ matrix.cc }}
+          CXX: ${{ matrix.cxx }}
+        run: >
+          cmake -S app -B build -G Ninja
+          -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
+          -DTELEMETRY_BUILD_TESTS=ON
+          -DTELEMETRY_WARNINGS_AS_ERRORS=ON
+          -DTELEMETRY_SANITIZE=${{ matrix.sanitize }}
+
+      - name: Build
+        run: cmake --build build
+
+      - name: Unit and integration tests
+        run: ctest --test-dir build --output-on-failure
+
+  cross-compile:
+    name: cross-compile aarch64
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install cross toolchain and user-mode QEMU
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends ninja-build g++-aarch64-linux-gnu qemu-user file
+
+      - name: Configure and build
+        run: |
+          cmake -S app -B build-arm64 -G Ninja \
+            -DCMAKE_TOOLCHAIN_FILE="$PWD/app/cmake/toolchains/aarch64-linux-gnu.cmake" \
+            -DCMAKE_BUILD_TYPE=Release -DTELEMETRY_WARNINGS_AS_ERRORS=ON
+          cmake --build build-arm64
+
+      - name: Inspect and run the arm64 binaries
+        run: |
+          file build-arm64/telemetryd build-arm64/telemetry-sim
+          qemu-aarch64 -L /usr/aarch64-linux-gnu build-arm64/telemetryd --version
+          qemu-aarch64 -L /usr/aarch64-linux-gnu build-arm64/telemetry-sim \
+            --output - --sensors 2 --count 2 --seed 1 --quiet
+
+  lint:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: shellcheck
+        run: |
+          shellcheck --severity=warning scripts/*.sh app/tests/integration_test.sh \
+            meta-telemetry/recipes-telemetry/telemetryd/files/run-ptest
+
+      - name: Resolve kas configurations
+        env:
+          KAS_CLONE_DEPTH: "1"
+        run: |
+          pipx install kas
+          for config in kas/qemux86-64.yml kas/raspberrypi.yml kas/ci.yml; do
+            echo "== $config"
+            kas dump "$config" > /dev/null
+          done
